@@ -3,6 +3,7 @@ provider "aws" {
   region = "us-west-1"
 }
 
+# AWS autoscaling group.
 resource "aws_launch_configuration" "hello_world" {
   image_id        = "ami-0dd655843c87b6930"
   instance_type   = "t2.micro"

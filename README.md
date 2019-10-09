@@ -15,12 +15,17 @@ https://atom.io/packages/language-terraform
 * I'm using this .gitignore file to keep any Terraform artifacts out of the repository.
 https://github.com/github/gitignore/blob/master/Terraform.gitignore
 
+* If you want to change the region you deploy to, that's cool. Just make sure to update the AMI ID. This is using Ubuntu 18.04 LTS per the blog.
+https://cloud-images.ubuntu.com/locator/ec2/
+
 ## Running
 * Once you complete `Installation and Setup` always remember to first set the AWS authentication environment variables in any new shell you use to run the code.
 ```bash
 export AWS_SECRET_ACCESS_KEY=<YOUR-KEY>
 export AWS_ACCESS_KEY_ID=<YOUR-KEY-ID>
 ```
+
+* As mentioned in the blog, first run `terraform init` to retrieve the required provider code (aws) and save it to a local `.terraform` directory.
 
 * To test drive what changes will occur:
 
@@ -72,6 +77,10 @@ Outputs:
 elb_dns_name = terraform-hello-world-elb-185301025.us-west-1.elb.amazonaws.com
 ```
 
+* Variables may also be set as environment variables (`TF_DEV_<VAR-NAME>`) or in a file using `-var-file`
+
+
+
 * Outputs defined in Terraform code are displayed once `terraform apply` completes or you can query:
 
 ```bash
@@ -82,7 +91,159 @@ elb_dns_name = terraform-hello-world-elb-185301025.us-west-1.elb.amazonaws.com
 ***
 
 ## Lessons Learned
-1. Terraform by design enforces the concept of immutable infrastructure. Changes to your code are tracked such that even a minor update to a resource causes Terraform to tear down the environment before rebuilding. This was a surprise to me as an Ansible user expecting idempotence.
+* Terraform by design enforces immutable infrastructure. Changes to your code are tracked such that a minor update to a resource causes Terraform to tear down the required resource and rebuild it. This was a surprise to me as an Ansible user expecting idempotence.
+
+Here is a change to user data in the autoscaling group:
+
+```bash
+$ terraform apply
+var.server_port
+  The port the server will use for HTTP requests
+
+  Enter a value: 8080
+
+data.aws_availability_zones.all: Refreshing state...
+aws_security_group.web_access: Refreshing state... [id=sg-0ad080785a83c15ef]
+aws_security_group.elb_access: Refreshing state... [id=sg-01ceefd2f2b461c88]
+aws_launch_configuration.hello_world: Refreshing state... [id=terraform-20191009221901796000000001]
+aws_elb.hello-world-elb: Refreshing state... [id=terraform-hello-world-elb]
+aws_autoscaling_group.scale_hello: Refreshing state... [id=tf-asg-20191009221906381900000002]
+
+An execution plan has been generated and is shown below.
+Resource actions are indicated with the following symbols:
+  ~ update in-place
++/- create replacement and then destroy
+
+Terraform will perform the following actions:
+
+  # aws_autoscaling_group.scale_hello will be updated in-place
+  ~ resource "aws_autoscaling_group" "scale_hello" {
+        arn                       = "arn:aws:autoscaling:us-west-1:498234039551:autoScalingGroup:4bb89914-ca4f-461c-adfd-324752cfb834:autoScalingGroupName/tf-asg-20191009221906381900000002"
+        availability_zones        = [
+            "us-west-1b",
+            "us-west-1c",
+        ]
+        default_cooldown          = 300
+        desired_capacity          = 3
+        enabled_metrics           = []
+        force_delete              = false
+        health_check_grace_period = 300
+        health_check_type         = "ELB"
+        id                        = "tf-asg-20191009221906381900000002"
+      ~ launch_configuration      = "terraform-20191009221901796000000001" -> (known after apply)
+        load_balancers            = [
+            "terraform-hello-world-elb",
+        ]
+        max_size                  = 5
+        metrics_granularity       = "1Minute"
+        min_size                  = 3
+        name                      = "tf-asg-20191009221906381900000002"
+        protect_from_scale_in     = false
+        service_linked_role_arn   = "arn:aws:iam::498234039551:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling"
+        suspended_processes       = []
+        target_group_arns         = []
+        termination_policies      = []
+        vpc_zone_identifier       = []
+        wait_for_capacity_timeout = "10m"
+
+        tag {
+            key                 = "Name"
+            propagate_at_launch = true
+            value               = "terraform-asg-hello-world"
+        }
+    }
+
+  # aws_launch_configuration.hello_world must be replaced
++/- resource "aws_launch_configuration" "hello_world" {
+        associate_public_ip_address      = false
+      ~ ebs_optimized                    = false -> (known after apply)
+        enable_monitoring                = true
+      ~ id                               = "terraform-20191009221901796000000001" -> (known after apply)
+        image_id                         = "ami-0dd655843c87b6930"
+        instance_type                    = "t2.micro"
+      + key_name                         = (known after apply)
+      ~ name                             = "terraform-20191009221901796000000001" -> (known after apply)
+        security_groups                  = [
+            "sg-0ad080785a83c15ef",
+        ]
+      ~ user_data                        = "4430fd6498339061effa6d27ccf341a1e94569d7" -> "e102397f7b199cbf7b446fab2bfbd1bd9d7182ce" # forces replacement
+      - vpc_classic_link_security_groups = [] -> null
+
+      + ebs_block_device {
+          + delete_on_termination = (known after apply)
+          + device_name           = (known after apply)
+          + encrypted             = (known after apply)
+          + iops                  = (known after apply)
+          + no_device             = (known after apply)
+          + snapshot_id           = (known after apply)
+          + volume_size           = (known after apply)
+          + volume_type           = (known after apply)
+        }
+
+      + root_block_device {
+          + delete_on_termination = (known after apply)
+          + encrypted             = (known after apply)
+          + iops                  = (known after apply)
+          + volume_size           = (known after apply)
+          + volume_type           = (known after apply)
+        }
+    }
+
+Plan: 1 to add, 1 to change, 1 to destroy.
+
+Do you want to perform these actions?
+  Terraform will perform the actions described above.
+  Only 'yes' will be accepted to approve.
+
+  Enter a value: yes
+
+aws_launch_configuration.hello_world: Creating...
+aws_launch_configuration.hello_world: Creation complete after 1s [id=terraform-20191009223346108800000001]
+aws_autoscaling_group.scale_hello: Modifying... [id=tf-asg-20191009221906381900000002]
+aws_autoscaling_group.scale_hello: Modifications complete after 0s [id=tf-asg-20191009221906381900000002]
+aws_launch_configuration.hello_world: Destroying... [id=terraform-20191009221901796000000001]
+aws_launch_configuration.hello_world: Destruction complete after 0s
+
+Apply complete! Resources: 1 added, 1 changed, 1 destroyed.
+
+Outputs:
+
+elb_dns_name = terraform-hello-world-elb-185301025.us-west-1.elb.amazonaws.com
+```
+
+* Removing the deployment is simple as well:
+
+```bash
+$ terraform destroy
+var.server_port
+  The port the server will use for HTTP requests
+
+  Enter a value: 8080
+
+data.aws_availability_zones.all: Refreshing state...
+aws_security_group.web_access: Refreshing state... [id=sg-0ad080785a83c15ef]
+aws_security_group.elb_access: Refreshing state... [id=sg-01ceefd2f2b461c88]
+aws_launch_configuration.hello_world: Refreshing state... [id=terraform-20191009223346108800000001]
+aws_elb.hello-world-elb: Refreshing state... [id=terraform-hello-world-elb]
+aws_autoscaling_group.scale_hello: Refreshing state... [id=tf-asg-20191009221906381900000002]
+
+An execution plan has been generated and is shown below.
+Resource actions are indicated with the following symbols:
+  - destroy
+
+Terraform will perform the following actions:
+.
+.
+.
+Do you really want to destroy all resources?
+  Terraform will destroy all your managed infrastructure, as shown above.
+  There is no undo. Only 'yes' will be accepted to confirm.
+
+  Enter a value: yes
+.
+.
+.
+```
 
 ## Additional References
 * Getting Started with Terraform: https://learn.hashicorp.com/terraform/getting-started/install.html
