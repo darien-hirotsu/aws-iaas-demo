@@ -61,7 +61,9 @@ resource "aws_autoscaling_group" "scale_hello" {
   min_size = 3
   max_size = 5
 
+  # Attach the AWS CLB to the autoscaling group.
   load_balancers    = [aws_elb.hello-world-elb.name]
+  # AWS ELB health check is more robust and monitors more than just hypervisor.
   health_check_type = "ELB"
 
   # AWS tag assigned to instance.
@@ -77,7 +79,10 @@ resource "aws_elb" "hello-world-elb" {
   security_groups    = [aws_security_group.elb_access.id]
   availability_zones = data.aws_availability_zones.all.names
 
+  /* AWS classic load balancer health check initated every 30 seconds. The web
+  server must respond with a 200 OK. */
   health_check {
+    # Terreform uses ${} within a string literal for interpolation.
     target              = "HTTP:${var.server_port}/"
     interval            = 30
     timeout             = 3
@@ -102,10 +107,12 @@ variable "server_port" {
   type        = number
 }
 
-/* Data sources contain information required for configuration. They are read
-only and retrieved from the provider's API. */
+/* Data sources contain information required for configuration. They are read-only
+and retrieved from the provider's API. */
 data "aws_availability_zones" "all" {}
 
+/* Terraform allows for creating output variables to store data. You can use
+a sensitive boolean to not log sensitive information after an apply. */
 output "elb_dns_name" {
   value       = aws_elb.hello-world-elb.dns_name
   description = "The domain name of the elb load balancer"

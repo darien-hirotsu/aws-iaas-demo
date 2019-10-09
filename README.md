@@ -4,7 +4,7 @@
 This demo is based on the awesome resource below which walks through a simple Terraform "Hello world!" example.
 https://blog.gruntwork.io/an-introduction-to-terraform-f17df9c6d180
 
-In the example above, you will create a simple web server running in AWS using Terraform. Then you expand by creating an autoscaling group with an ELB front end. The example contained in this repository deploys the autoscaling group with some with some minor tweaks. I updated some details compared to the original like Terraform resource names, AWS region names, etc. to help absorb concepts.
+In the example above, you create a simple web server running in AWS using Terraform. Then you expand by creating an autoscaling group with an elastic load balancer front end (technically we are deploying a classic load balancer for simplicity). The example contained in this repository deploys the autoscaling group with some with some tweaks. I updated some details compared to the original such as Terraform resource names, AWS region names, etc. to help absorb concepts.
 
 ## Installation and Setup
 * The blog shown in the `Overview` section walks through all of the required installation including how to install the Terraform binary and how to setup a simple IAM account using the AWS free tier.
@@ -15,7 +15,7 @@ https://atom.io/packages/language-terraform
 * I'm using this .gitignore file to keep any Terraform artifacts out of the repository.
 https://github.com/github/gitignore/blob/master/Terraform.gitignore
 
-* If you want to change the region you deploy to, that's cool. Just make sure to update the AMI ID. This is using Ubuntu 18.04 LTS per the blog.
+* If you want to change the region you deploy to, that's cool. Just make sure to update the AMI ID. This is using Ubuntu 18.04 LTS; same as the blog.
 https://cloud-images.ubuntu.com/locator/ec2/
 
 ## Running
@@ -74,18 +74,39 @@ Apply complete! Resources: 5 added, 0 changed, 0 destroyed.
 
 Outputs:
 
-elb_dns_name = terraform-hello-world-elb-185301025.us-west-1.elb.amazonaws.com
+elb_dns_name = terraform-hello-world-elb-257115914.us-west-1.elb.amazonaws.com
 ```
 
-* Variables may also be set as environment variables (`TF_DEV_<VAR-NAME>`) or in a file using `-var-file`
+* Variables may also be set as environment variables (`TF_DEV_<VAR-NAME>`) or in a file using `-var-file` as shown below:
 
+```bash
+$ terraform apply -var-file dev_vars.tfvars
+data.aws_availability_zones.all: Refreshing state...
+aws_security_group.web_access: Refreshing state... [id=sg-0384d7b5c1306951c]
+aws_security_group.elb_access: Refreshing state... [id=sg-0515982a6f679494c]
+aws_launch_configuration.hello_world: Refreshing state... [id=terraform-20191009224535838400000001]
+aws_elb.hello-world-elb: Refreshing state... [id=terraform-hello-world-elb]
+aws_autoscaling_group.scale_hello: Refreshing state... [id=tf-asg-20191009224539125900000002]
 
+Apply complete! Resources: 0 added, 0 changed, 0 destroyed.
+
+Outputs:
+
+elb_dns_name = terraform-hello-world-elb-257115914.us-west-1.elb.amazonaws.com
+```
 
 * Outputs defined in Terraform code are displayed once `terraform apply` completes or you can query:
 
 ```bash
 $ terraform output
-elb_dns_name = terraform-hello-world-elb-185301025.us-west-1.elb.amazonaws.com
+elb_dns_name = terraform-hello-world-elb-257115914.us-west-1.elb.amazonaws.com
+```
+
+* If all is good, you can have an application running quickly.
+
+```bash
+$ curl terraform-hello-world-elb-257115914.us-west-1.elb.amazonaws.com
+Hello, World. Its Terraform time!
 ```
 
 ***
@@ -208,7 +229,7 @@ Apply complete! Resources: 1 added, 1 changed, 1 destroyed.
 
 Outputs:
 
-elb_dns_name = terraform-hello-world-elb-185301025.us-west-1.elb.amazonaws.com
+elb_dns_name = terraform-hello-world-elb-257115914.us-west-1.elb.amazonaws.com
 ```
 
 * Removing the deployment is simple as well:
@@ -245,5 +266,11 @@ Do you really want to destroy all resources?
 .
 ```
 
+* In order to verify changes, Terraform has to track state.
+https://www.terraform.io/docs/state/index.html
+
+When you run the example, Terraform creates a terraform.tfstate file locally. This is JSON data to track the state of the deployment.
+
 ## Additional References
-* Getting Started with Terraform: https://learn.hashicorp.com/terraform/getting-started/install.html
+* Getting started with Terraform: https://learn.hashicorp.com/terraform/getting-started/install.html
+* Source code for the blog: https://github.com/gruntwork-io/intro-to-terraform
