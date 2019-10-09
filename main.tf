@@ -37,3 +37,8 @@ resource "aws_security_group" "web_ingress" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 }
+
+output "public_ipv4" {
+  value       = aws_instance.hello_world.public_ip
+  description = "The public IP of the web server."
+}
