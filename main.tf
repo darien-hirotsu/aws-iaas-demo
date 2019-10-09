@@ -14,7 +14,7 @@ resource "aws_launch_configuration" "hello_world" {
   a background process using the busybox web service. */
   user_data = <<-EOF
               #!/bin/bash
-              echo "Hello, World" > index.html
+              echo "Hello, World. It's Terraform time!" > index.html
               nohup busybox httpd -f -p "${var.server_port}" &
               EOF
   /* AWS autoscaling. The default is to delete a new resource then create new.
